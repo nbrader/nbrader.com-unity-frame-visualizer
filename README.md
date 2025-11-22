@@ -4,6 +4,8 @@ An interactive web-based visualization tool that simulates and demonstrates CPU/
 
 ![Unity Frame Timing Visualizer](Thumbnail.png)
 
+**[Try it live →](https://nbrader.com/unity-frame-visualizer/index.html)**
+
 ## Overview
 
 This educational tool helps developers understand the complex timing relationships between CPU and GPU work in modern game engines. By adjusting parameters in real-time, you can explore how different configurations affect frame rate, identify bottlenecks, and understand the impact of command buffer size and frame queuing limits.
