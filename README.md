@@ -1,6 +1,6 @@
 # Unity Frame Timing Visualizer
 
-An interactive web-based visualization tool that simulates and demonstrates CPU/GPU pipelining, command buffer behavior, and frame queuing in Unity-style rendering pipelines.
+An interactive web-based visualization tool that simulates and demonstrates CPU/GPU pipelining, graphics command queue behavior, and frame pipeline depth in Unity-style rendering pipelines.
 
 ![Unity Frame Timing Visualizer](Thumbnail.png)
 
@@ -8,7 +8,7 @@ An interactive web-based visualization tool that simulates and demonstrates CPU/
 
 ## Overview
 
-This educational tool helps developers understand the complex timing relationships between CPU and GPU work in modern game engines. By adjusting parameters in real-time, you can explore how different configurations affect frame rate, identify bottlenecks, and understand the impact of command buffer size and frame queuing limits.
+This educational tool helps developers understand the complex timing relationships between CPU and GPU work in modern game engines. By adjusting parameters in real-time, you can explore how different configurations affect frame rate, identify bottlenecks, and understand the impact of graphics command queue capacity and frame pipeline depth.
 
 ## Features
 
@@ -17,9 +17,9 @@ This educational tool helps developers understand the complex timing relationshi
 - **Performance Metrics**: Track FPS, frame time, bottleneck identification, buffer usage, and input latency
 - **Educational**: Understand concepts like:
   - CPU-bound vs GPU-bound scenarios
-  - Command buffer saturation
-  - Frame queuing and input latency
-  - Pipeline parallelism
+  - Graphics command queue saturation
+  - Frame pipeline depth and input latency
+  - CPU-GPU parallelism
 
 ## How to Use
 
@@ -37,11 +37,11 @@ Then open `index.html` in your web browser.
 ### Controls
 
 - **Script Execution Time**: Duration of CPU-side game logic and physics (ms)
-- **Render Commands Per Frame**: Number of draw calls/render commands generated per frame
-- **Command Generation Time Factor**: CPU time per render command (ms per command)
-- **Command Processing Time Factor**: GPU time per render command (ms per command)
-- **Command Buffer Size**: Maximum commands that can be queued before CPU must wait
-- **Max Queued Frames**: CPU frame queue depth limit (prevents excessive input latency)
+- **Draw Calls Per Frame**: Number of draw calls generated per frame
+- **Draw Call Generation Time**: CPU time per draw call (ms per call)
+- **Draw Call Processing Time**: GPU time per draw call (ms per call)
+- **Graphics Command Queue Capacity**: Maximum draw calls that can be queued before CPU must wait
+- **Max Frames Ahead**: CPU-GPU frame pipeline depth limit (prevents excessive input latency)
 
 ### Understanding the Timeline
 
@@ -55,17 +55,17 @@ Each frame is labeled with "Frame N" on the CPU track and "Present N" when the G
 
 - **Frame Time**: Time between frame presentations (lower is better)
 - **FPS**: Frames per second
-- **Bottleneck**: Identifies the limiting factor (CPU Scripts, CPU Render, GPU, Buffer Full, or Max Frames Queued)
-- **Command Buffer**: Current buffer usage vs maximum capacity
-- **Queued Frames**: Number of frames queued for GPU vs limit
+- **Bottleneck**: Identifies the limiting factor (CPU Scripts, CPU Render, GPU, Queue Full, or Frame Pipeline Limit)
+- **Graphics Command Queue**: Current queue usage vs maximum capacity
+- **Frames Ahead**: Number of frames the CPU is ahead of GPU vs pipeline depth limit
 - **Input Latency**: Time from frame start to final presentation
 
 ## Examples to Try
 
 1. **CPU-Bound Scenario**: Increase "Script Execution Time" to 30ms while keeping GPU processing low - observe CPU bottleneck
-2. **GPU-Bound Scenario**: Increase "Command Processing Time Factor" to 0.15 - observe GPU becoming the bottleneck
-3. **Buffer Saturation**: Set buffer size close to render commands count - observe CPU waiting for buffer space
-4. **Input Latency**: Increase "Max Queued Frames" to 6 - see how input latency grows
+2. **GPU-Bound Scenario**: Increase "Draw Call Processing Time" to 0.15 - observe GPU becoming the bottleneck
+3. **Queue Saturation**: Set graphics command queue capacity close to draw calls count - observe CPU waiting for queue space
+4. **Input Latency**: Increase "Max Frames Ahead" to 6 - see how input latency grows
 
 ## Technical Details
 

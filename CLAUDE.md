@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Unity Frame Timing Visualizer is a standalone interactive web application that simulates and visualizes CPU/GPU pipelining, command buffer behavior, and frame queuing in Unity-style rendering. It's a purely client-side educational tool with no build process or dependencies.
+Unity Frame Timing Visualizer is a standalone interactive web application that simulates and visualizes CPU/GPU pipelining, graphics command queue behavior, and frame pipeline depth in Unity-style rendering. It's a purely client-side educational tool with no build process or dependencies.
 
 ## Architecture
 
@@ -12,16 +12,16 @@ Unity Frame Timing Visualizer is a standalone interactive web application that s
 
 The `simulate()` function is the heart of the application. It models 6 frames of CPU-GPU pipeline behavior with these key mechanics:
 
-- **Command Buffer Management**: Tracks `queuedCommands` that accumulate as the CPU generates render commands and are freed when the GPU begins processing a frame
-- **Frame Queuing Gates**: Enforces `maxQueued` frames limit by blocking CPU work until earlier frames' GPU work completes
-- **Buffer Saturation**: CPU waits when `queuedCommands + renderCommands > bufferSize`
-- **Release Scheduling**: Uses a `releases` array to track when buffer space becomes available (when GPU starts processing)
+- **Graphics Command Queue Management**: Tracks `queuedDrawCalls` that accumulate as the CPU generates draw calls and are freed when the GPU begins processing a frame
+- **Frame Pipeline Gating**: Enforces `maxFramesAhead` limit by blocking CPU work until earlier frames' GPU work completes
+- **Queue Saturation**: CPU waits when `queuedDrawCalls + drawCalls > queueCapacity`
+- **Release Scheduling**: Uses a `releases` array to track when queue space becomes available (when GPU starts processing)
 
 Key timing calculations per frame:
-- CPU waits are computed first (max queued frames, then buffer space)
-- Script execution and render command generation run sequentially on CPU
+- CPU waits are computed first (frame pipeline limit, then queue space)
+- Script execution and draw call generation run sequentially on CPU
 - GPU start time is `max(renderEnd, prevGpuEnd)` to handle both CPU-bound and GPU-bound scenarios
-- Commands occupy buffer space from `renderEnd` until `gpuStart`
+- Draw calls occupy queue space from `renderEnd` until `gpuStart`
 
 ### Rendering Architecture (script.js:150-273)
 
@@ -30,9 +30,9 @@ The timeline visualization uses percentage-based positioning where `scale()` con
 ### Interactive Constraints (script.js:326-371)
 
 The controls have bidirectional enforcement:
-- Increasing `renderCommands` above `bufferSize` automatically expands the buffer
-- Decreasing `bufferSize` below `renderCommands` automatically reduces render commands
-- Skip flags (`skipRenderCommandsUpdate`, `skipBufferSizeUpdate`) prevent infinite update loops
+- Increasing `drawCalls` above `queueCapacity` automatically expands the queue capacity
+- Decreasing `queueCapacity` below `drawCalls` automatically reduces draw calls
+- Skip flags (`skipDrawCallsUpdate`, `skipQueueCapacityUpdate`) prevent infinite update loops
 
 ## Development
 

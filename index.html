@@ -9,7 +9,7 @@
 <body>
   <header>
     <h1>Unity Frame Timing Visualizer</h1>
-    <p class="subtitle">Interactive view of CPU/GPU pipelining, command buffer, and queued frames.</p>
+    <p class="subtitle">Interactive view of CPU/GPU pipelining, graphics command queue, and frame pipeline depth.</p>
   </header>
 
   <div class="warning">
@@ -23,29 +23,29 @@
       <span class="value" data-for="scriptTime"></span>
     </div>
     <div class="control-group">
-      <label for="renderCommands">Render Commands Per Frame</label>
-      <input id="renderCommands" type="range" min="50" max="2000" step="10" value="50" />
-      <span class="value" data-for="renderCommands"></span>
+      <label for="drawCalls">Draw Calls Per Frame</label>
+      <input id="drawCalls" type="range" min="50" max="2000" step="10" value="50" />
+      <span class="value" data-for="drawCalls"></span>
     </div>
     <div class="control-group">
-      <label for="genFactor">Command Generation Time Factor (ms per command)</label>
+      <label for="genFactor">Draw Call Generation Time (ms per call)</label>
       <input id="genFactor" type="range" min="0.01" max="0.2" step="0.005" value="0.01" />
       <span class="value" data-for="genFactor"></span>
     </div>
     <div class="control-group">
-      <label for="procFactor">Command Processing Time Factor (ms per command)</label>
+      <label for="procFactor">Draw Call Processing Time (ms per call)</label>
       <input id="procFactor" type="range" min="0.01" max="0.2" step="0.005" value="0.2" />
       <span class="value" data-for="procFactor"></span>
     </div>
     <div class="control-group">
-      <label for="bufferSize">Command Buffer Size (commands)</label>
-      <input id="bufferSize" type="range" min="100" max="2000" step="50" value="2000" />
-      <span class="value" data-for="bufferSize"></span>
+      <label for="queueCapacity">Graphics Command Queue Capacity (draw calls)</label>
+      <input id="queueCapacity" type="range" min="100" max="2000" step="50" value="2000" />
+      <span class="value" data-for="queueCapacity"></span>
     </div>
     <div class="control-group">
-      <label for="maxQueued">Max Queued Frames</label>
-      <input id="maxQueued" type="range" min="2" max="6" step="1" value="2" />
-      <span class="value" data-for="maxQueued"></span>
+      <label for="maxFramesAhead">Max Frames Ahead (pipeline depth)</label>
+      <input id="maxFramesAhead" type="range" min="2" max="6" step="1" value="2" />
+      <span class="value" data-for="maxFramesAhead"></span>
     </div>
   </section>
 
@@ -63,11 +63,11 @@
       <span id="bottleneck" class="number">-</span>
     </div>
     <div class="metric">
-      <span class="label">Command Buffer</span>
-      <span id="bufferUse" class="number">0/0</span>
+      <span class="label">Graphics Command Queue</span>
+      <span id="queueUse" class="number">0/0</span>
     </div>
     <div class="metric">
-      <span class="label">Queued Frames</span>
+      <span class="label">Frames Ahead</span>
       <span id="queuedFrames" class="number">0</span>
     </div>
     <div class="metric">

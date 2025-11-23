@@ -1,10 +1,10 @@
 const controls = {
   scriptTime: document.getElementById('scriptTime'),
-  renderCommands: document.getElementById('renderCommands'),
+  drawCalls: document.getElementById('drawCalls'),
   genFactor: document.getElementById('genFactor'),
   procFactor: document.getElementById('procFactor'),
-  bufferSize: document.getElementById('bufferSize'),
-  maxQueued: document.getElementById('maxQueued'),
+  queueCapacity: document.getElementById('queueCapacity'),
+  maxFramesAhead: document.getElementById('maxFramesAhead'),
 };
 
 const valueSpans = document.querySelectorAll('.value');
@@ -17,7 +17,7 @@ const metrics = {
   frameTime: document.getElementById('frameTime'),
   fps: document.getElementById('fps'),
   bottleneck: document.getElementById('bottleneck'),
-  bufferUse: document.getElementById('bufferUse'),
+  queueUse: document.getElementById('queueUse'),
   queuedFrames: document.getElementById('queuedFrames'),
   inputLatency: document.getElementById('inputLatency'),
 };
@@ -34,7 +34,7 @@ function updateValueLabels() {
   valueSpans.forEach((el) => {
     const id = el.dataset.for;
     const input = controls[id];
-    el.textContent = input.id === 'maxQueued' || input.id === 'renderCommands' || input.id === 'bufferSize'
+    el.textContent = input.id === 'maxFramesAhead' || input.id === 'drawCalls' || input.id === 'queueCapacity'
       ? input.value
       : Number(input.value).toFixed(3);
   });
@@ -45,14 +45,14 @@ function simulate(params) {
   const frames = [];
   let prevRenderEnd = 0;
   let prevGpuEnd = 0;
-  let queuedCommands = 0;
+  let queuedDrawCalls = 0;
   const releases = [];
 
   const settleReleases = (time) => {
-    // Free buffer space for any frame whose GPU work has started.
+    // Free queue space for any frame whose GPU work has started.
     for (let i = releases.length - 1; i >= 0; i--) {
       if (releases[i].time <= time) {
-        queuedCommands = Math.max(0, queuedCommands - releases[i].amount);
+        queuedDrawCalls = Math.max(0, queuedDrawCalls - releases[i].amount);
         releases.splice(i, 1);
       }
     }
@@ -60,62 +60,62 @@ function simulate(params) {
 
   for (let i = 0; i < framesToSim; i++) {
     const script = params.scriptTime;
-    const render = params.renderCommands * params.genFactor;
-    const gpuDuration = params.renderCommands * params.procFactor;
+    const render = params.drawCalls * params.genFactor;
+    const gpuDuration = params.drawCalls * params.procFactor;
     const frame = { index: i };
 
     let start = prevRenderEnd;
-    let waitMax = 0;
-    let waitMaxStart = 0;
-    let waitBuffer = 0;
-    let waitBufferStart = 0;
+    let waitFramesAhead = 0;
+    let waitFramesAheadStart = 0;
+    let waitQueue = 0;
+    let waitQueueStart = 0;
 
     settleReleases(start);
 
-    if (i - params.maxQueued >= 0 && frames[i - params.maxQueued]) {
-      const gateTime = frames[i - params.maxQueued].gpuEnd;
+    if (i - params.maxFramesAhead >= 0 && frames[i - params.maxFramesAhead]) {
+      const gateTime = frames[i - params.maxFramesAhead].gpuEnd;
       if (gateTime > start) {
-        waitMaxStart = start;
-        waitMax = gateTime - start;
+        waitFramesAheadStart = start;
+        waitFramesAhead = gateTime - start;
         start = gateTime;
         settleReleases(start);
       }
     }
 
-    const bufferWaitStart = start;
-    while (queuedCommands + params.renderCommands > params.bufferSize) {
+    const queueWaitStart = start;
+    while (queuedDrawCalls + params.drawCalls > params.queueCapacity) {
       const nextRelease = releases.length ? Math.min(...releases.map((r) => r.time)) : Infinity;
       if (!Number.isFinite(nextRelease)) break;
       const waitUntil = Math.max(start, nextRelease);
-      waitBuffer += waitUntil - start;
+      waitQueue += waitUntil - start;
       start = waitUntil;
       settleReleases(start);
     }
-    if (waitBuffer > 0) {
-      waitBufferStart = bufferWaitStart;
+    if (waitQueue > 0) {
+      waitQueueStart = queueWaitStart;
     }
 
-    frame.waitMax = waitMax;
-    frame.waitMaxStart = waitMaxStart;
-    frame.waitBuffer = waitBuffer;
-    frame.waitBufferStart = waitBufferStart;
+    frame.waitFramesAhead = waitFramesAhead;
+    frame.waitFramesAheadStart = waitFramesAheadStart;
+    frame.waitQueue = waitQueue;
+    frame.waitQueueStart = waitQueueStart;
     frame.scriptStart = start;
     frame.scriptEnd = frame.scriptStart + script;
     frame.renderStart = frame.scriptEnd;
     frame.renderEnd = frame.renderStart + render;
 
-    // Commands land in the buffer at renderEnd until the GPU begins this frame.
-    queuedCommands += params.renderCommands;
-    const bufferSnapshot = queuedCommands;
+    // Draw calls enter the queue at renderEnd until the GPU begins this frame.
+    queuedDrawCalls += params.drawCalls;
+    const queueSnapshot = queuedDrawCalls;
 
     frame.gpuStart = Math.max(frame.renderEnd, prevGpuEnd);
     frame.gpuIdle = Math.max(0, frame.renderEnd - prevGpuEnd);
     frame.gpuWait = Math.max(0, prevGpuEnd - frame.renderEnd);
     frame.gpuEnd = frame.gpuStart + gpuDuration;
     frame.gpuDuration = gpuDuration;
-    frame.bufferUse = bufferSnapshot;
+    frame.queueUse = queueSnapshot;
 
-    releases.push({ time: frame.gpuStart, amount: params.renderCommands });
+    releases.push({ time: frame.gpuStart, amount: params.drawCalls });
     frames.push(frame);
     prevRenderEnd = frame.renderEnd;
     prevGpuEnd = frame.gpuEnd;
@@ -196,22 +196,22 @@ function renderTimeline(frames, params) {
 
   frames.forEach((frame) => {
     const yIndex = frame.index % 6;
-    if (frame.waitMax > 0) {
+    if (frame.waitFramesAhead > 0) {
       createBar({
         lane: cpuLane,
-        start: scale(frame.waitMaxStart),
-        end: scale(frame.waitMaxStart + frame.waitMax),
-        label: 'CPU Wait (Max Frames)',
+        start: scale(frame.waitFramesAheadStart),
+        end: scale(frame.waitFramesAheadStart + frame.waitFramesAhead),
+        label: 'CPU Wait (Frame Pipeline)',
         type: 'wait',
         frameIndex: yIndex,
       });
     }
-    if (frame.waitBuffer > 0) {
+    if (frame.waitQueue > 0) {
       createBar({
         lane: cpuLane,
-        start: scale(frame.waitBufferStart),
-        end: scale(frame.waitBufferStart + frame.waitBuffer),
-        label: 'CPU Wait (Buffer Full)',
+        start: scale(frame.waitQueueStart),
+        end: scale(frame.waitQueueStart + frame.waitQueue),
+        label: 'CPU Wait (Queue Full)',
         type: 'wait',
         frameIndex: yIndex,
       });
@@ -280,16 +280,16 @@ function computeMetrics(frames, params) {
   const prev = frames[frames.length - 2];
   const frameTime = last.gpuEnd - prev.gpuEnd;
   const fps = 1000 / frameTime;
-  const bufferOccupancy = Math.max(...frames.map((f) => f.bufferUse));
+  const queueOccupancy = Math.max(...frames.map((f) => f.queueUse));
   const queued = frames.filter((f) => f.gpuEnd > last.renderEnd).length;
 
   const bottleneck = (() => {
-    if (last.waitBuffer > 0) return 'Buffer Full';
-    if (last.waitMax > 0) return 'Max Frames Queued';
-    const cpuCost = params.scriptTime + params.renderCommands * params.genFactor;
-    const gpuCost = params.renderCommands * params.procFactor;
+    if (last.waitQueue > 0) return 'Queue Full';
+    if (last.waitFramesAhead > 0) return 'Frame Pipeline Limit';
+    const cpuCost = params.scriptTime + params.drawCalls * params.genFactor;
+    const gpuCost = params.drawCalls * params.procFactor;
     if (cpuCost > gpuCost) {
-      return params.scriptTime >= params.renderCommands * params.genFactor ? 'CPU Scripts' : 'CPU Render';
+      return params.scriptTime >= params.drawCalls * params.genFactor ? 'CPU Scripts' : 'CPU Render';
     }
     return 'GPU';
   })();
@@ -297,17 +297,17 @@ function computeMetrics(frames, params) {
   metrics.frameTime.textContent = formatMs(frameTime);
   metrics.fps.textContent = fps.toFixed(1);
   metrics.bottleneck.textContent = bottleneck;
-  metrics.bufferUse.textContent = `${formatNumber(bufferOccupancy)} / ${formatNumber(params.bufferSize)}`;
-  metrics.queuedFrames.textContent = `${queued} / ${params.maxQueued}`;
+  metrics.queueUse.textContent = `${formatNumber(queueOccupancy)} / ${formatNumber(params.queueCapacity)}`;
+  metrics.queuedFrames.textContent = `${queued} / ${params.maxFramesAhead}`;
   metrics.inputLatency.textContent = formatMs(last.gpuEnd - last.scriptStart);
 }
 
 
 function updateExplanation(params) {
   const text = [
-    `Scripts take ${params.scriptTime} ms, generating ${params.renderCommands} commands in ${(params.renderCommands * params.genFactor).toFixed(2)} ms on the CPU.`,
-    `The GPU processes commands in ${(params.renderCommands * params.procFactor).toFixed(2)} ms while the buffer can hold ${params.bufferSize} commands (minimum: ${params.renderCommands}).`,
-    `The CPU is limited to ${params.maxQueued} queued frames; additional frames wait for GPU completion or buffer space.`,
+    `Scripts take ${params.scriptTime} ms, generating ${params.drawCalls} draw calls in ${(params.drawCalls * params.genFactor).toFixed(2)} ms on the CPU.`,
+    `The GPU processes these draw calls in ${(params.drawCalls * params.procFactor).toFixed(2)} ms while the graphics command queue can hold ${params.queueCapacity} draw calls (minimum: ${params.drawCalls}).`,
+    `The CPU can work ${params.maxFramesAhead} frames ahead; beyond that, it waits for GPU completion or queue space.`,
   ];
   explanationText.textContent = text.join(' ');
 }
@@ -315,16 +315,16 @@ function updateExplanation(params) {
 function readParams() {
   return {
     scriptTime: Number(controls.scriptTime.value),
-    renderCommands: Number(controls.renderCommands.value),
+    drawCalls: Number(controls.drawCalls.value),
     genFactor: Number(controls.genFactor.value),
     procFactor: Number(controls.procFactor.value),
-    bufferSize: Number(controls.bufferSize.value),
-    maxQueued: Number(controls.maxQueued.value),
+    queueCapacity: Number(controls.queueCapacity.value),
+    maxFramesAhead: Number(controls.maxFramesAhead.value),
   };
 }
 
-let skipRenderCommandsUpdate = false;
-let skipBufferSizeUpdate = false;
+let skipDrawCallsUpdate = false;
+let skipQueueCapacityUpdate = false;
 
 function update() {
   updateValueLabels();
@@ -336,42 +336,42 @@ function update() {
 }
 
 // Add event listeners with two-way constraint enforcement
-controls.renderCommands.addEventListener('input', () => {
-  if (skipRenderCommandsUpdate) {
-    skipRenderCommandsUpdate = false;
+controls.drawCalls.addEventListener('input', () => {
+  if (skipDrawCallsUpdate) {
+    skipDrawCallsUpdate = false;
     return;
   }
 
-  const renderCommands = Number(controls.renderCommands.value);
-  const bufferSize = Number(controls.bufferSize.value);
+  const drawCalls = Number(controls.drawCalls.value);
+  const queueCapacity = Number(controls.queueCapacity.value);
 
-  // If render commands exceed buffer, expand buffer to match
-  if (renderCommands > bufferSize) {
-    skipBufferSizeUpdate = true;
-    controls.bufferSize.value = renderCommands;
+  // If draw calls exceed queue capacity, expand queue to match
+  if (drawCalls > queueCapacity) {
+    skipQueueCapacityUpdate = true;
+    controls.queueCapacity.value = drawCalls;
   }
   update();
 });
 
-controls.bufferSize.addEventListener('input', () => {
-  if (skipBufferSizeUpdate) {
-    skipBufferSizeUpdate = false;
+controls.queueCapacity.addEventListener('input', () => {
+  if (skipQueueCapacityUpdate) {
+    skipQueueCapacityUpdate = false;
     return;
   }
 
-  const renderCommands = Number(controls.renderCommands.value);
-  const bufferSize = Number(controls.bufferSize.value);
+  const drawCalls = Number(controls.drawCalls.value);
+  const queueCapacity = Number(controls.queueCapacity.value);
 
-  // If buffer is smaller than render commands, reduce render commands to match
-  if (bufferSize < renderCommands) {
-    skipRenderCommandsUpdate = true;
-    controls.renderCommands.value = bufferSize;
+  // If queue capacity is smaller than draw calls, reduce draw calls to match
+  if (queueCapacity < drawCalls) {
+    skipDrawCallsUpdate = true;
+    controls.drawCalls.value = queueCapacity;
   }
   update();
 });
 
 // Add standard event listeners for other controls
-[controls.scriptTime, controls.genFactor, controls.procFactor, controls.maxQueued].forEach((input) => {
+[controls.scriptTime, controls.genFactor, controls.procFactor, controls.maxFramesAhead].forEach((input) => {
   input.addEventListener('input', update);
 });
 
