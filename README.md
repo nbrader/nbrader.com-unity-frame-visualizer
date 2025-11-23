@@ -32,7 +32,29 @@ git clone https://github.com/yourusername/nbrader.com-unity-frame-visualizer.git
 cd nbrader.com-unity-frame-visualizer
 ```
 
-Then open `index.html` in your web browser.
+**Option 1: Direct File Access (Simplest)**
+
+Open `index.html` directly in your web browser. This works reliably in Firefox and usually works in Chrome/Edge/Safari.
+
+**Option 2: Local Web Server (If needed)**
+
+If your browser has strict security policies for local files, use a simple web server:
+
+```bash
+# Python 3
+python -m http.server 8000
+
+# Python 2
+python -m SimpleHTTPServer 8000
+
+# Node.js (if you have npx)
+npx serve
+
+# PHP
+php -S localhost:8000
+```
+
+Then open `http://localhost:8000` in your browser.
 
 ### Controls
 
